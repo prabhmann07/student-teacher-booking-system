@@ -1,10 +1,9 @@
-import { protectPage } from './auth.js';
+// js/admin.js (Complete file with validation)
+import { protectPage, logActivity } from './auth.js'; 
 import { db, auth as adminAuth, firebaseConfig } from './firebase-config.js'; 
 import { collection, query, where, getDocs, doc, updateDoc, setDoc, onSnapshot, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-// --- Import logActivity from auth.js ---
-import { logActivity } from './auth.js'; 
 
 // --- Run Auth Guard ---
 protectPage(['admin']);
@@ -19,7 +18,7 @@ async function loadUnapprovedStudents() {
             const usersRef = collection(db, "users");
             const q = query(usersRef, where("role", "==", "student"), where("isApproved", "==", false));
             const querySnapshot = await getDocs(q);
-            
+
             if (querySnapshot.empty) {
                 studentsList.innerHTML = '<li class="list-group-item">No students are waiting for approval.</li>';
                 return;
@@ -45,7 +44,6 @@ async function loadUnapprovedStudents() {
                 button.addEventListener('click', approveStudent);
             });
         } catch (error) {
-            // --- Logging ---
             logActivity('error', 'Failed to load unapproved students', { error: error.message });
             console.error("Error loading students: ", error);
             studentsList.innerHTML = '<li class="list-group-item text-danger">Error loading students.</li>';
@@ -61,7 +59,6 @@ async function approveStudent(e) {
     try {
         const studentDocRef = doc(db, "users", studentId);
         await updateDoc(studentDocRef, { isApproved: true });
-        // --- Logging ---
         logActivity('info', 'Student approved', { studentId: studentId, adminUid: adminAuth.currentUser?.uid });
 
         button.closest('li').remove();
@@ -69,7 +66,6 @@ async function approveStudent(e) {
             studentsList.innerHTML = '<li class="list-group-item">No students are waiting for approval.</li>';
         }
     } catch (error) {
-        // --- Logging ---
         logActivity('error', 'Failed to approve student', { error: error.message, studentId: studentId });
         console.error("Error approving student: ", error);
         button.textContent = 'Error';
@@ -87,9 +83,11 @@ const updateTeacherForm = document.getElementById('update-teacher-form');
 const updateTeacherModal = updateTeacherModalEl ? new bootstrap.Modal(updateTeacherModalEl) : null;
 
 
+// --- Add Teacher function (WITH VALIDATION) ---
 async function addTeacher(e) {
     e.preventDefault();
-    
+
+    // Get form data
     const name = document.getElementById('teacher-name').value;
     const email = document.getElementById('teacher-email').value;
     const password = document.getElementById('teacher-password').value;
@@ -97,18 +95,38 @@ async function addTeacher(e) {
     const subject = document.getElementById('teacher-subject').value;
     const errorEl = document.getElementById('add-teacher-error');
     const button = document.getElementById('add-teacher-btn');
+    errorEl.textContent = ''; // Clear previous errors
+    errorEl.classList.remove('text-success', 'text-danger'); // Reset color
+
+    // --- VALIDATION LOGIC ---
+    if (!name.trim() || !email.trim() || !password.trim() || !department.trim() || !subject.trim()) {
+        errorEl.textContent = 'All fields are required.';
+        errorEl.classList.add('text-danger');
+        return; // Stop submission
+    }
+    if (password.length < 6) {
+         errorEl.textContent = 'Password must be at least 6 characters long.';
+         errorEl.classList.add('text-danger');
+         return; // Stop submission
+    }
+    // Simple email format check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        errorEl.textContent = 'Please enter a valid email address.';
+        errorEl.classList.add('text-danger');
+        return; // Stop submission
+    }
+    // --- END VALIDATION ---
 
     button.disabled = true;
     button.textContent = 'Adding...';
-    errorEl.textContent = '';
 
     try {
-        const tempApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`); // Unique name
+        const tempApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`); 
         const tempAuth = getAuth(tempApp);
 
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const user = userCredential.user;
-        // --- Logging ---
         logActivity('info', 'Teacher created in Auth', { teacherEmail: email, adminUid: adminAuth.currentUser?.uid });
 
         await setDoc(doc(db, "users", user.uid), {
@@ -118,28 +136,25 @@ async function addTeacher(e) {
             department: department,
             subject: subject
         });
-        // --- Logging ---
         logActivity('info', 'Teacher document created in Firestore', { teacherUid: user.uid, adminUid: adminAuth.currentUser?.uid });
 
         addTeacherForm.reset();
-        button.disabled = false;
-        button.textContent = 'Add Teacher';
         errorEl.textContent = 'Teacher added successfully!';
-        errorEl.classList.remove('text-danger');
         errorEl.classList.add('text-success');
 
     } catch (error) {
-        // --- Logging ---
         logActivity('error', 'Failed to add teacher', { error: error.message, adminUid: adminAuth.currentUser?.uid });
         console.error("Error adding teacher: ", error);
-        errorEl.textContent = error.message;
+        errorEl.textContent = error.message; // Show Firebase error
         errorEl.classList.add('text-danger');
-        errorEl.classList.remove('text-success');
+    } finally {
+         // Re-enable button regardless of success or failure
         button.disabled = false;
         button.textContent = 'Add Teacher';
     }
 }
 
+// --- Load Teachers (unchanged) ---
 function loadTeachers() {
     if (teachersList) {
         teachersList.innerHTML = '<li class="list-group-item">Loading teachers...</li>';
@@ -169,7 +184,6 @@ function loadTeachers() {
                 teachersList.appendChild(li);
             });
         }, (error) => {
-            // --- Logging ---
             logActivity('error', 'Failed to load teachers list', { error: error.message });
             console.error("Error loading teachers: ", error);
             teachersList.innerHTML = '<li class="list-group-item text-danger">Error loading teachers.</li>';
@@ -177,6 +191,7 @@ function loadTeachers() {
     }
 }
 
+// --- Delete Teacher (unchanged) ---
 async function deleteTeacher(teacherId) {
     if (!confirm("Are you sure you want to delete this teacher?")) {
         return;
@@ -184,23 +199,21 @@ async function deleteTeacher(teacherId) {
     try {
         const teacherDocRef = doc(db, "users", teacherId);
         await deleteDoc(teacherDocRef);
-        // --- Logging ---
         logActivity('warn', 'Teacher deleted from Firestore', { teacherId: teacherId, adminUid: adminAuth.currentUser?.uid });
     } catch (error) {
-        // --- Logging ---
         logActivity('error', 'Failed to delete teacher', { error: error.message, teacherId: teacherId });
         console.error("Error deleting teacher: ", error);
         alert("Error deleting teacher. See console for details.");
     }
 }
 
+// --- Open Update Modal (unchanged) ---
 async function openUpdateModal(teacherId) {
     try {
         const teacherDocRef = doc(db, "users", teacherId);
         const teacherDoc = await getDoc(teacherDocRef);
 
         if (!teacherDoc.exists()) {
-            // --- Logging ---
             logActivity('error', 'Attempted to update non-existent teacher', { teacherId: teacherId });
             alert("Teacher not found!");
             return;
@@ -213,47 +226,45 @@ async function openUpdateModal(teacherId) {
         document.getElementById('update-teacher-email').value = teacher.email;
         document.getElementById('update-teacher-dept').value = teacher.department;
         document.getElementById('update-teacher-subject').value = teacher.subject;
-        
+
         updateTeacherModal.show();
     } catch (error) {
-        // --- Logging ---
         logActivity('error', 'Failed to fetch teacher details for update', { error: error.message, teacherId: teacherId });
         console.error("Error getting teacher details: ", error);
         alert("Error fetching teacher details. See console.");
     }
 }
 
+// --- Handle Update Form Submit (unchanged) ---
 async function handleUpdateFormSubmit(e) {
     e.preventDefault();
-    
+
     const teacherId = document.getElementById('update-teacher-id').value;
     const name = document.getElementById('update-teacher-name').value;
     const department = document.getElementById('update-teacher-dept').value;
     const subject = document.getElementById('update-teacher-subject').value;
     const button = document.getElementById('update-teacher-btn');
     const errorEl = document.getElementById('update-teacher-error');
-    
+
     button.disabled = true;
     button.textContent = 'Saving...';
     errorEl.textContent = '';
 
     try {
         const teacherDocRef = doc(db, "users", teacherId);
-        
+
         await updateDoc(teacherDocRef, {
             name: name,
             department: department,
             subject: subject
         });
-        // --- Logging ---
         logActivity('info', 'Teacher details updated', { teacherId: teacherId, adminUid: adminAuth.currentUser?.uid });
 
         button.disabled = false;
         button.textContent = 'Save Changes';
-        updateTeacherModal.hide(); // Hide the modal
+        updateTeacherModal.hide(); 
 
     } catch (error) {
-        // --- Logging ---
         logActivity('error', 'Failed to update teacher', { error: error.message, teacherId: teacherId });
         console.error("Error updating teacher: ", error);
         errorEl.textContent = "Error updating teacher. See console.";

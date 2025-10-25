@@ -1,4 +1,4 @@
-// Import all the functions we need from Firebase
+// js/auth.js (Complete file with validation)
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -10,10 +10,10 @@ import {
     setDoc,
     getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { auth, db } from './firebase-config.js'; // Import our services
+import { auth, db } from './firebase-config.js';
 
 // --- Simple Logging Function ---
-function logActivity(level, message, context = {}) {
+export function logActivity(level, message, context = {}) { // Make sure to export it
     console[level](`[${new Date().toISOString()}] ${message}`, context);
 }
 
@@ -22,7 +22,7 @@ const loginForm = document.getElementById('login-form');
 const registerForm = document.getElementById('register-form');
 const logoutButton = document.getElementById('logout-button');
 
-// --- Registration Logic (WITH LOADING STATE) ---
+// --- Registration Logic (WITH VALIDATION) ---
 if (registerForm) {
     registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -30,21 +30,34 @@ if (registerForm) {
         const email = document.getElementById('register-email').value;
         const password = document.getElementById('register-password').value;
         const errorEl = document.getElementById('error-message');
-        
-        // Get the button by its new ID
         const registerButton = document.getElementById('register-btn');
+        errorEl.textContent = ''; // Clear previous errors
+
+        // --- VALIDATION LOGIC ---
+        if (!name.trim() || !email.trim() || !password.trim()) {
+            errorEl.textContent = 'All fields are required.';
+            return; // Stop submission
+        }
+        if (password.length < 6) {
+             errorEl.textContent = 'Password must be at least 6 characters long.';
+             return; // Stop submission
+        }
+        // Simple email format check using a Regular Expression
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            errorEl.textContent = 'Please enter a valid email address.';
+            return; // Stop submission
+        }
+        // --- END VALIDATION ---
 
         try {
-            // Disable button and show loading text
             registerButton.disabled = true;
             registerButton.textContent = 'Registering...';
 
-            // 1. Create user in Firebase Auth
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
             logActivity('info', 'New user registered in Auth', { email: user.email });
 
-            // 2. Create user document in Firestore
             await setDoc(doc(db, "users", user.uid), {
                 name: name,
                 email: email,
@@ -52,43 +65,53 @@ if (registerForm) {
                 isApproved: false 
             });
             logActivity('info', 'User document created in Firestore', { uid: user.uid });
-            
-            // 3. Redirect to login page
+
             window.location.href = 'index.html?message=Registration successful. Please wait for admin approval.';
 
         } catch (error) {
             logActivity('error', 'Registration failed', { error: error.message });
             errorEl.textContent = error.message;
-
-            // Re-enable button on failure
             registerButton.disabled = false;
             registerButton.textContent = 'Register';
         }
     });
 }
 
-// --- Login Logic (WITH LOADING STATE) ---
+// --- Login Logic (WITH VALIDATION) ---
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
         const errorEl = document.getElementById('error-message');
-        
-        // Get the button by its new ID
         const loginButton = document.getElementById('login-btn');
+        errorEl.textContent = ''; // Clear previous errors
+
+        // --- VALIDATION LOGIC ---
+        if (!email.trim() || !password.trim()) {
+            errorEl.textContent = 'Email and password are required.';
+            return; // Stop submission
+        }
+         if (password.length < 6) {
+             errorEl.textContent = 'Password must be at least 6 characters long.';
+             return; // Stop submission
+        }
+        // Simple email format check
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            errorEl.textContent = 'Please enter a valid email address.';
+            return; // Stop submission
+        }
+        // --- END VALIDATION ---
 
         try {
-            // Disable button and show loading text
             loginButton.disabled = true;
             loginButton.textContent = 'Logging in...';
 
-            // 1. Sign in the user
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
             logActivity('info', 'User login attempt', { email: user.email });
 
-            // 2. Get the user's document from Firestore
             const userDocRef = doc(db, "users", user.uid);
             const userDoc = await getDoc(userDocRef);
 
@@ -98,19 +121,15 @@ if (loginForm) {
 
             const userData = userDoc.data();
 
-            // 3. Check for student approval
             if (userData.role === 'student' && !userData.isApproved) {
                 logActivity('warn', 'Unapproved student login attempt', { email: user.email });
-                await signOut(auth); // Log them out
+                await signOut(auth); 
                 errorEl.textContent = "Your account is not yet approved by an admin.";
-                
-                // Re-enable button on this specific failure
                 loginButton.disabled = false;
                 loginButton.textContent = 'Login';
                 return; 
             }
 
-            // 4. Redirect based on role
             logActivity('info', 'Login successful, redirecting', { role: userData.role });
             if (userData.role === 'admin') {
                 window.location.href = 'admin/dashboard.html';
@@ -123,8 +142,6 @@ if (loginForm) {
         } catch (error) {
             logActivity('error', 'Login failed', { error: error.message });
             errorEl.textContent = "Invalid email or password.";
-
-            // Re-enable button on failure
             loginButton.disabled = false;
             loginButton.textContent = 'Login';
         }
@@ -145,8 +162,9 @@ if (loginForm) {
 if (logoutButton) {
     logoutButton.addEventListener('click', async () => {
         try {
+            const userEmail = auth.currentUser?.email; // Get email before logging out
             await signOut(auth);
-            logActivity('info', 'User logged out');
+            logActivity('info', 'User logged out', { email: userEmail });
             if (window.location.pathname.includes('/admin/') || 
                 window.location.pathname.includes('/teacher/') || 
                 window.location.pathname.includes('/student/')) {
@@ -165,44 +183,39 @@ export async function protectPage(allowedRoles = []) {
     onAuthStateChanged(auth, async (user) => {
         const path = window.location.pathname;
         const isProtectedPage = path.includes('/admin/') || path.includes('/teacher/') || path.includes('/student/');
-        
+
         let loginUrl = 'index.html';
         if (isProtectedPage) {
             loginUrl = '../index.html';
         }
 
         if (user) {
-            // User is logged in. Now, check their role.
             const userDocRef = doc(db, "users", user.uid);
             const userDoc = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
                 const userData = userDoc.data();
-                
+
                 if (allowedRoles.includes(userData.role)) {
-                    // User is logged in and has the correct role. Stay on the page.
-                    logActivity('info', `User authorized for page`, { email: user.email, role: userData.role });
+                    logActivity('info', `User authorized for page`, { email: user.email, role: userData.role, path: path });
                     document.body.dataset.user = JSON.stringify(userData);
                     document.body.dataset.uid = user.uid;
+                    // Dispatch event for other scripts
                     document.body.dispatchEvent(new CustomEvent('authReady', { detail: { uid: user.uid, user: userData } }));
                 } else {
-                    // User has the wrong role. Redirect them to login.
-                    logActivity('warn', `Role mismatch. Redirecting.`, { email: user.email, role: userData.role });
+                    logActivity('warn', `Role mismatch. Redirecting.`, { email: user.email, role: userData.role, attemptedPath: path });
                     window.location.href = loginUrl;
                 }
             } else {
-                // User is in Auth, but not in Firestore.
                 logActivity('error', `User doc not found. Logging out.`, { email: user.email });
                 await signOut(auth);
                 window.location.href = loginUrl;
             }
         } else {
-            // No user is logged in. Redirect to login.
             if (isProtectedPage) {
-                logActivity('info', `No user logged in. Redirecting to login.`);
+                logActivity('info', `No user logged in. Redirecting to login. Attempted path: ${path}`);
                 window.location.href = loginUrl;
             }
-            // If we are on index.html or register.html, do nothing.
         }
     });
 }
