@@ -2,11 +2,23 @@
 
 This is a web application built for an internship project. It allows students to book appointments with teachers, provides a panel for teachers to manage their schedules, and includes an admin dashboard for system management.
 
+---
+
+## Live Demo
+
+You can view a live demo of this project deployed on Firebase Hosting:
+
+**[Live Demo](https://student-teacher-booking-2eb05.web.app)**
+
+---
+
 ## Project Details
 
 * **Domain:** Education
 * **Project Difficulties level:** Easy
 * **Technologies Used:** HTML, CSS, JavaScript (ES6 Modules), Firebase
+
+---
 
 ## Features
 
@@ -30,12 +42,16 @@ This project is a Multiple Page Application (MPA) built with vanilla JavaScript 
 * **Book Appointment:** Select an available time slot from a teacher's schedule and send a booking request.
 * **View Status:** View a real-time list of all their appointments and see their status (pending, approved, or cancelled).
 
+---
+
 ## Core Technical Concepts
 
 * **Database:** Cloud Firestore (NoSQL) is used to store all user and appointment data.
 * **Authentication:** Firebase Authentication handles secure email/password login and user management.
 * **Routing:** The project is a Multiple Page Application (MPA). Page access is protected by a JavaScript-based "Auth Guard" that checks user roles from Firestore.
 * **Real-time Data:** `onSnapshot` listeners from Firebase are used to show real-time updates for appointment lists (for both students and teachers) and teacher lists (for the admin).
+
+---
 
 ## Basic Workflow and Execution
 
@@ -45,6 +61,7 @@ Follow these steps to run the project locally.
 ```bash
 git clone [https://github.com/prabhmann07/student-teacher-booking-system.git](https://github.com/prabhmann07/student-teacher-booking-system.git)
 cd student-teacher-booking-system
+```
 
 ### 2. Create Firebase Config
 This project requires a Firebase project to run.
