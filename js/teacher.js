@@ -1,6 +1,6 @@
-import { protectPage } from './auth.js';
+// --- Import logActivity from auth.js ---
+import { protectPage, logActivity } from './auth.js'; 
 import { db } from './firebase-config.js';
-// --- NEW: Added collection, query, and where ---
 import { doc, setDoc, onSnapshot, Timestamp, updateDoc, arrayUnion, collection, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // --- Run Auth Guard ---
@@ -10,15 +10,15 @@ protectPage(['teacher']);
 const scheduleForm = document.getElementById('schedule-form');
 const slotsList = document.getElementById('slots-list');
 const scheduleMessage = document.getElementById('schedule-message');
-// --- NEW: Get appointments list element ---
 const appointmentsList = document.getElementById('appointments-list');
 
-let currentTeacherId = null; // We'll get this from the auth state
+let currentTeacherId = null; 
 
-// --- Schedule Logic (Unchanged) ---
+// --- Schedule Logic ---
 async function addScheduleSlot(e) {
     e.preventDefault();
     if (!currentTeacherId) {
+        logActivity('error', 'Add slot attempt failed: No teacher ID found');
         scheduleMessage.textContent = 'Error: Not logged in correctly.';
         scheduleMessage.className = 'text-danger mt-2';
         return;
@@ -36,12 +36,26 @@ async function addScheduleSlot(e) {
         await updateDoc(scheduleDocRef, {
             availableSlots: arrayUnion(firestoreTimestamp)
         });
+        // --- Logging ---
+        logActivity('info', 'Availability slot added', { teacherId: currentTeacherId, slot: firestoreTimestamp });
     } catch (error) {
         if (error.code === 'not-found') {
-            await setDoc(doc(db, "teacherSchedules", currentTeacherId), {
-                availableSlots: [firestoreTimestamp]
-            });
+            try {
+                await setDoc(doc(db, "teacherSchedules", currentTeacherId), {
+                    availableSlots: [firestoreTimestamp]
+                });
+                 // --- Logging ---
+                logActivity('info', 'Availability slot added (new schedule created)', { teacherId: currentTeacherId, slot: firestoreTimestamp });
+            } catch (setErr) {
+                 // --- Logging ---
+                logActivity('error', 'Failed to set initial schedule slot', { error: setErr.message, teacherId: currentTeacherId });
+                console.error("Error setting initial slot: ", setErr);
+                scheduleMessage.textContent = 'Error adding slot. See console.';
+                scheduleMessage.className = 'text-danger mt-2';
+            }
         } else {
+             // --- Logging ---
+            logActivity('error', 'Failed to add schedule slot', { error: error.message, teacherId: currentTeacherId });
             console.error("Error adding slot: ", error);
             scheduleMessage.textContent = 'Error adding slot. See console.';
             scheduleMessage.className = 'text-danger mt-2';
@@ -76,21 +90,19 @@ function loadSchedule(teacherId) {
                 slotsList.innerHTML = '<li class="list-group-item">You have no available slots.</li>';
             }
         }, (error) => {
+             // --- Logging ---
+            logActivity('error', 'Failed to load teacher schedule', { error: error.message, teacherId: teacherId });
             console.error("Error loading schedule: ", error);
             slotsList.innerHTML = '<li class="list-group-item text-danger">Error loading schedule.</li>';
         });
     }
 }
 
-// --- NEW: Appointments Logic ---
-
-// Function to load and display appointments
+// --- Appointments Logic ---
 function loadAppointments(teacherId) {
     if (appointmentsList) {
         appointmentsList.innerHTML = '<li class="list-group-item">Loading appointments...</li>';
-        
         const apptsRef = collection(db, "appointments");
-        // Query for appointments where teacherId matches
         const q = query(apptsRef, where("teacherId", "==", teacherId));
 
         onSnapshot(q, (querySnapshot) => {
@@ -99,7 +111,7 @@ function loadAppointments(teacherId) {
                 return;
             }
             
-            appointmentsList.innerHTML = ''; // Clear list
+            appointmentsList.innerHTML = ''; 
             querySnapshot.forEach((doc) => {
                 const appt = doc.data();
                 const apptId = doc.id;
@@ -109,19 +121,17 @@ function loadAppointments(teacherId) {
                 li.className = 'list-group-item';
                 
                 let buttonsHtml = '';
-                // Show buttons only if the status is "pending"
                 if (appt.status === 'pending') {
                     buttonsHtml = `
                         <button class="btn btn-success btn-sm approve-appt-btn" data-id="${apptId}">Approve</button>
                         <button class="btn btn-danger btn-sm cancel-appt-btn" data-id="${apptId}">Cancel</button>
                     `;
                 } else {
-                    // Show the status if it's not pending
-                    buttonsHtml = `<span class="badge bg-secondary">${appt.status}</span>`;
+                    buttonsHtml = `<span class="badge bg-${appt.status === 'approved' ? 'success' : 'danger'}">${appt.status}</span>`;
                 }
 
                 li.innerHTML = `
-                    <div class="d-flex w-100 justify-content-between">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
                         <h5 class="mb-1">${appt.studentName}</h5>
                         <small>${apptDate.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</small>
                     </div>
@@ -133,20 +143,25 @@ function loadAppointments(teacherId) {
                 appointmentsList.appendChild(li);
             });
         }, (error) => {
+             // --- Logging ---
+            logActivity('error', 'Failed to load teacher appointments', { error: error.message, teacherId: teacherId });
             console.error("Error loading appointments: ", error);
             appointmentsList.innerHTML = '<li class="list-group-item text-danger">Error loading appointments.</li>';
         });
     }
 }
 
-// Function to update appointment status
 async function updateAppointmentStatus(apptId, newStatus) {
     try {
         const apptDocRef = doc(db, "appointments", apptId);
         await updateDoc(apptDocRef, {
             status: newStatus
         });
+         // --- Logging ---
+        logActivity('info', 'Appointment status updated', { teacherId: currentTeacherId, appointmentId: apptId, newStatus: newStatus });
     } catch (error) {
+         // --- Logging ---
+        logActivity('error', 'Failed to update appointment status', { error: error.message, appointmentId: apptId, newStatus: newStatus });
         console.error("Error updating appointment: ", error);
         alert("Error updating appointment. See console.");
     }
@@ -154,21 +169,16 @@ async function updateAppointmentStatus(apptId, newStatus) {
 
 
 // --- Run on Page Load ---
-
 document.body.addEventListener('authReady', (e) => {
     currentTeacherId = e.detail.uid;
-    
-    // Load both schedule and appointments
     loadSchedule(currentTeacherId);
-    loadAppointments(currentTeacherId); // --- NEW ---
+    loadAppointments(currentTeacherId); 
 
-    // Add listener to the schedule form
     if (scheduleForm) {
         scheduleForm.addEventListener('submit', addScheduleSlot);
     }
 });
 
-// --- NEW: Event Delegation for Approve/Cancel buttons ---
 if (appointmentsList) {
     appointmentsList.addEventListener('click', (e) => {
         const target = e.target;

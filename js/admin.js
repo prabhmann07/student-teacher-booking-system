@@ -1,16 +1,15 @@
 import { protectPage } from './auth.js';
-// --- NEW: Import the main 'auth' as 'adminAuth' and get the config ---
 import { db, auth as adminAuth, firebaseConfig } from './firebase-config.js'; 
 import { collection, query, where, getDocs, doc, updateDoc, setDoc, onSnapshot, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-// --- NEW: Import initializeApp and getAuth ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+// --- Import logActivity from auth.js ---
+import { logActivity } from './auth.js'; 
 
 // --- Run Auth Guard ---
 protectPage(['admin']);
 
-
-// --- Approve Students Logic (unchanged) ---
+// --- Approve Students Logic ---
 const studentsList = document.getElementById('students-list');
 
 async function loadUnapprovedStudents() {
@@ -46,6 +45,8 @@ async function loadUnapprovedStudents() {
                 button.addEventListener('click', approveStudent);
             });
         } catch (error) {
+            // --- Logging ---
+            logActivity('error', 'Failed to load unapproved students', { error: error.message });
             console.error("Error loading students: ", error);
             studentsList.innerHTML = '<li class="list-group-item text-danger">Error loading students.</li>';
         }
@@ -60,11 +61,16 @@ async function approveStudent(e) {
     try {
         const studentDocRef = doc(db, "users", studentId);
         await updateDoc(studentDocRef, { isApproved: true });
+        // --- Logging ---
+        logActivity('info', 'Student approved', { studentId: studentId, adminUid: adminAuth.currentUser?.uid });
+
         button.closest('li').remove();
         if (studentsList.children.length === 0) {
             studentsList.innerHTML = '<li class="list-group-item">No students are waiting for approval.</li>';
         }
     } catch (error) {
+        // --- Logging ---
+        logActivity('error', 'Failed to approve student', { error: error.message, studentId: studentId });
         console.error("Error approving student: ", error);
         button.textContent = 'Error';
         button.classList.remove('btn-success');
@@ -73,19 +79,17 @@ async function approveStudent(e) {
 }
 
 
-// --- Manage Teachers Logic (Phase 2) ---
+// --- Manage Teachers Logic ---
 const addTeacherForm = document.getElementById('add-teacher-form');
 const teachersList = document.getElementById('teachers-list');
 const updateTeacherModalEl = document.getElementById('updateTeacherModal');
 const updateTeacherForm = document.getElementById('update-teacher-form');
-// --- FIX: Use bootstrap.Modal ---
 const updateTeacherModal = updateTeacherModalEl ? new bootstrap.Modal(updateTeacherModalEl) : null;
 
-// --- UPDATED: Add Teacher function ---
+
 async function addTeacher(e) {
     e.preventDefault();
     
-    // Get form data
     const name = document.getElementById('teacher-name').value;
     const email = document.getElementById('teacher-email').value;
     const password = document.getElementById('teacher-password').value;
@@ -99,15 +103,14 @@ async function addTeacher(e) {
     errorEl.textContent = '';
 
     try {
-        // --- NEW: Create a temporary app and auth service ---
-        const tempApp = initializeApp(firebaseConfig, "secondary");
+        const tempApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`); // Unique name
         const tempAuth = getAuth(tempApp);
 
-        // --- NEW: Use the temporary auth service to create the user ---
         const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
         const user = userCredential.user;
+        // --- Logging ---
+        logActivity('info', 'Teacher created in Auth', { teacherEmail: email, adminUid: adminAuth.currentUser?.uid });
 
-        // Step 2: Create the teacher document in Firestore
         await setDoc(doc(db, "users", user.uid), {
             name: name,
             email: email,
@@ -115,8 +118,9 @@ async function addTeacher(e) {
             department: department,
             subject: subject
         });
+        // --- Logging ---
+        logActivity('info', 'Teacher document created in Firestore', { teacherUid: user.uid, adminUid: adminAuth.currentUser?.uid });
 
-        // Success! Clear the form and reset the button
         addTeacherForm.reset();
         button.disabled = false;
         button.textContent = 'Add Teacher';
@@ -125,6 +129,8 @@ async function addTeacher(e) {
         errorEl.classList.add('text-success');
 
     } catch (error) {
+        // --- Logging ---
+        logActivity('error', 'Failed to add teacher', { error: error.message, adminUid: adminAuth.currentUser?.uid });
         console.error("Error adding teacher: ", error);
         errorEl.textContent = error.message;
         errorEl.classList.add('text-danger');
@@ -134,7 +140,6 @@ async function addTeacher(e) {
     }
 }
 
-// Load Teachers (unchanged)
 function loadTeachers() {
     if (teachersList) {
         teachersList.innerHTML = '<li class="list-group-item">Loading teachers...</li>';
@@ -164,13 +169,14 @@ function loadTeachers() {
                 teachersList.appendChild(li);
             });
         }, (error) => {
+            // --- Logging ---
+            logActivity('error', 'Failed to load teachers list', { error: error.message });
             console.error("Error loading teachers: ", error);
             teachersList.innerHTML = '<li class="list-group-item text-danger">Error loading teachers.</li>';
         });
     }
 }
 
-// Delete Teacher (unchanged)
 async function deleteTeacher(teacherId) {
     if (!confirm("Are you sure you want to delete this teacher?")) {
         return;
@@ -178,19 +184,24 @@ async function deleteTeacher(teacherId) {
     try {
         const teacherDocRef = doc(db, "users", teacherId);
         await deleteDoc(teacherDocRef);
+        // --- Logging ---
+        logActivity('warn', 'Teacher deleted from Firestore', { teacherId: teacherId, adminUid: adminAuth.currentUser?.uid });
     } catch (error) {
+        // --- Logging ---
+        logActivity('error', 'Failed to delete teacher', { error: error.message, teacherId: teacherId });
         console.error("Error deleting teacher: ", error);
         alert("Error deleting teacher. See console for details.");
     }
 }
 
-// openUpdateModal (unchanged)
 async function openUpdateModal(teacherId) {
     try {
         const teacherDocRef = doc(db, "users", teacherId);
         const teacherDoc = await getDoc(teacherDocRef);
 
         if (!teacherDoc.exists()) {
+            // --- Logging ---
+            logActivity('error', 'Attempted to update non-existent teacher', { teacherId: teacherId });
             alert("Teacher not found!");
             return;
         }
@@ -205,12 +216,13 @@ async function openUpdateModal(teacherId) {
         
         updateTeacherModal.show();
     } catch (error) {
+        // --- Logging ---
+        logActivity('error', 'Failed to fetch teacher details for update', { error: error.message, teacherId: teacherId });
         console.error("Error getting teacher details: ", error);
         alert("Error fetching teacher details. See console.");
     }
 }
 
-// handleUpdateFormSubmit (unchanged)
 async function handleUpdateFormSubmit(e) {
     e.preventDefault();
     
@@ -233,12 +245,16 @@ async function handleUpdateFormSubmit(e) {
             department: department,
             subject: subject
         });
+        // --- Logging ---
+        logActivity('info', 'Teacher details updated', { teacherId: teacherId, adminUid: adminAuth.currentUser?.uid });
 
         button.disabled = false;
         button.textContent = 'Save Changes';
         updateTeacherModal.hide(); // Hide the modal
 
     } catch (error) {
+        // --- Logging ---
+        logActivity('error', 'Failed to update teacher', { error: error.message, teacherId: teacherId });
         console.error("Error updating teacher: ", error);
         errorEl.textContent = "Error updating teacher. See console.";
         button.disabled = false;
@@ -248,15 +264,13 @@ async function handleUpdateFormSubmit(e) {
 
 
 // --- Run on Page Load ---
-loadUnapprovedStudents(); // For the approve-students page
-loadTeachers(); // For the manage-teachers page
+loadUnapprovedStudents(); 
+loadTeachers(); 
 
-// Add listener to the add teacher form
 if (addTeacherForm) {
     addTeacherForm.addEventListener('submit', addTeacher);
 }
 
-// Event Delegation for Update/Delete buttons (unchanged)
 if (teachersList) {
     teachersList.addEventListener('click', (e) => {
         if (e.target.classList.contains('delete-btn')) {
@@ -270,7 +284,6 @@ if (teachersList) {
     });
 }
 
-// Add listener to the update form (unchanged)
 if (updateTeacherForm) {
     updateTeacherForm.addEventListener('submit', handleUpdateFormSubmit);
 }

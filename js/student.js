@@ -1,4 +1,5 @@
-import { protectPage } from './auth.js';
+// --- Import logActivity from auth.js ---
+import { protectPage, logActivity } from './auth.js'; 
 import { db } from './firebase-config.js';
 import { collection, query, where, onSnapshot, doc, getDoc, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -15,7 +16,6 @@ const teacherNameDisplay = document.getElementById('teacher-name-display');
 const slotsListDiv = document.getElementById('available-slots-list');
 const bookingMessage = document.getElementById('booking-message');
 
-// --- NEW: Get "My Appointments" list ---
 const myAppointmentsList = document.getElementById('my-appointments-list');
 
 let currentStudentId = null;
@@ -24,7 +24,7 @@ let allTeachers = [];
 let bookingTeacherId = null; 
 let bookingTeacherName = null;
 
-// --- Search Teacher Logic (Unchanged) ---
+// --- Search Teacher Logic ---
 function loadTeachers() {
     if (teachersList) {
         teachersList.innerHTML = '<li class="list-group-item">Loading teachers...</li>';
@@ -45,6 +45,8 @@ function loadTeachers() {
                 teachersList.appendChild(li);
             });
         }, (error) => {
+            // --- Logging ---
+            logActivity('error', 'Failed to load teachers list for student', { error: error.message });
             console.error("Error loading teachers: ", error);
             teachersList.innerHTML = '<li class="list-group-item text-danger">Error loading teachers.</li>';
         });
@@ -85,13 +87,15 @@ function filterTeachers(e) {
     }
 }
 
-// --- Booking Page Logic (Unchanged) ---
+// --- Booking Page Logic ---
 async function loadBookingPage() {
     if (!bookingForm) return; 
 
     const urlParams = new URLSearchParams(window.location.search);
     bookingTeacherId = urlParams.get('teacherId');
     if (!bookingTeacherId) {
+         // --- Logging ---
+        logActivity('error', 'Booking page loaded without teacherId');
         teacherNameDisplay.textContent = 'Error: No teacher selected.';
         return;
     }
@@ -100,6 +104,8 @@ async function loadBookingPage() {
         const teacherDocRef = doc(db, "users", bookingTeacherId);
         const teacherDoc = await getDoc(teacherDocRef);
         if (!teacherDoc.exists()) {
+             // --- Logging ---
+            logActivity('error', 'Teacher not found for booking', { teacherId: bookingTeacherId });
             teacherNameDisplay.textContent = 'Error: Teacher not found.';
             return;
         }
@@ -109,7 +115,7 @@ async function loadBookingPage() {
         const scheduleDocRef = doc(db, "teacherSchedules", bookingTeacherId);
         const scheduleDoc = await getDoc(scheduleDocRef);
 
-        if (!scheduleDoc.exists() || scheduleDoc.data().availableSlots.length === 0) {
+        if (!scheduleDoc.exists() || !scheduleDoc.data().availableSlots || scheduleDoc.data().availableSlots.length === 0) {
             slotsListDiv.innerHTML = '<p class="text-danger">This teacher has no available slots.</p>';
             return;
         }
@@ -134,6 +140,8 @@ async function loadBookingPage() {
         });
 
     } catch (error) {
+         // --- Logging ---
+        logActivity('error', 'Failed to load booking page details', { error: error.message, teacherId: bookingTeacherId });
         console.error("Error loading booking page: ", error);
         slotsListDiv.innerHTML = '<p class="text-danger">Error loading schedule.</p>';
     }
@@ -160,6 +168,13 @@ async function handleBookingSubmit(e) {
         const selectedMillis = Number(selectedSlotRadio.value);
         const selectedTimestamp = Timestamp.fromMillis(selectedMillis);
 
+        // --- Logging ---
+        logActivity('info', 'New appointment booking attempt', { 
+            studentId: currentStudentId, 
+            teacherId: bookingTeacherId, 
+            slot: selectedTimestamp 
+        });
+
         await addDoc(collection(db, "appointments"), {
             studentId: currentStudentId,
             studentName: currentStudentName,
@@ -169,6 +184,8 @@ async function handleBookingSubmit(e) {
             purpose: purpose,
             status: "pending" 
         });
+        // --- Logging ---
+        logActivity('info', 'Appointment booked successfully', { studentId: currentStudentId, teacherId: bookingTeacherId });
 
         bookingMessage.textContent = 'Appointment booked successfully! Redirecting...';
         bookingMessage.className = 'text-success mt-2';
@@ -178,6 +195,8 @@ async function handleBookingSubmit(e) {
         }, 2000);
 
     } catch (error) {
+         // --- Logging ---
+        logActivity('error', 'Failed to book appointment', { error: error.message, studentId: currentStudentId, teacherId: bookingTeacherId });
         console.error("Error booking appointment: ", error);
         bookingMessage.textContent = 'Error booking appointment. Please try again.';
         bookingMessage.className = 'text-danger mt-2';
@@ -186,16 +205,13 @@ async function handleBookingSubmit(e) {
     }
 }
 
-// --- NEW: "My Appointments" Page Logic ---
-
-// Function to load and display the student's bookings
+// --- "My Appointments" Page Logic ---
 function loadMyBookings(studentId) {
-    if (!myAppointmentsList) return; // Only run if we're on the right page
+    if (!myAppointmentsList) return; 
 
     myAppointmentsList.innerHTML = '<li class="list-group-item">Loading appointments...</li>';
 
     const apptsRef = collection(db, "appointments");
-    // Query for appointments where studentId matches
     const q = query(apptsRef, where("studentId", "==", studentId));
 
     onSnapshot(q, (querySnapshot) => {
@@ -204,13 +220,12 @@ function loadMyBookings(studentId) {
             return;
         }
         
-        myAppointmentsList.innerHTML = ''; // Clear list
+        myAppointmentsList.innerHTML = ''; 
         querySnapshot.forEach((doc) => {
             const appt = doc.data();
             const apptDate = appt.dateTime.toDate();
 
-            // Choose a color for the status badge
-            let statusColor = 'bg-secondary'; // default
+            let statusColor = 'bg-secondary'; 
             if (appt.status === 'approved') {
                 statusColor = 'bg-success';
             } else if (appt.status === 'cancelled') {
@@ -232,6 +247,8 @@ function loadMyBookings(studentId) {
             myAppointmentsList.appendChild(li);
         });
     }, (error) => {
+         // --- Logging ---
+        logActivity('error', 'Failed to load student appointments', { error: error.message, studentId: studentId });
         console.error("Error loading my appointments: ", error);
         myAppointmentsList.innerHTML = '<li class="list-group-item text-danger">Error loading appointments.</li>';
     });
@@ -246,7 +263,7 @@ document.body.addEventListener('authReady', (e) => {
     // Load functions for all student pages
     loadTeachers();
     loadBookingPage();
-    loadMyBookings(currentStudentId); // --- NEW ---
+    loadMyBookings(currentStudentId); 
 });
 
 // Add listener to the search form
