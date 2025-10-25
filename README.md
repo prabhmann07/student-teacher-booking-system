@@ -45,3 +45,43 @@ Follow these steps to run the project locally.
 ```bash
 git clone [https://github.com/prabhmann07/student-teacher-booking-system.git](https://github.com/prabhmann07/student-teacher-booking-system.git)
 cd student-teacher-booking-system
+
+### 2. Create Firebase Config
+This project requires a Firebase project to run.
+
+1.  Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
+2.  Enable **Authentication** (Email/Password).
+3.  Enable **Firestore Database** (start in "test mode").
+4.  In your project settings, find your "config" keys.
+5.  Create a new file in the `/js/` folder named `firebase-config.js`.
+6.  Paste your keys into the file using this format:
+
+    ```javascript
+    // js/firebase-config.js
+    import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js](https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js)";
+    import { getAuth } from "[https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js](https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js)";
+    import { getFirestore } from "[https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js](https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js)";
+
+    // Your web app's Firebase configuration
+    export const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    export const auth = getAuth(app);
+    export const db = getFirestore(app);
+    ```
+
+### 3. Run the Project
+You can run this project using any simple web server. If you use VS Code, the "Live Server" extension is recommended.
+
+1.  Right-click on the main `index.html` file.
+2.  Select "Open with Live Server".
+3.  The project will open in your browser.
+
+**Note:** You must create an admin user manually in Firebase (see Phase 2 test plan) to access the admin panels.
