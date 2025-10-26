@@ -1,3 +1,4 @@
+
 # Logs
 logs
 *.log
@@ -67,3 +68,5 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+js/firebase-config.js
