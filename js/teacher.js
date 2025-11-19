@@ -1,12 +1,12 @@
-// --- Import logActivity from auth.js ---
+// Import LogActivity from auth.js 
 import { protectPage, logActivity } from './auth.js'; 
 import { db } from './firebase-config.js';
 import { doc, setDoc, onSnapshot, Timestamp, updateDoc, arrayUnion, collection, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// --- Run Auth Guard ---
+// Run Auth Guard 
 protectPage(['teacher']);
 
-// --- Get DOM Elements ---
+// DOM Elements 
 const scheduleForm = document.getElementById('schedule-form');
 const slotsList = document.getElementById('slots-list');
 const scheduleMessage = document.getElementById('schedule-message');
@@ -14,7 +14,7 @@ const appointmentsList = document.getElementById('appointments-list');
 
 let currentTeacherId = null; 
 
-// --- Schedule Logic ---
+// Schedule Logic 
 async function addScheduleSlot(e) {
     e.preventDefault();
     if (!currentTeacherId) {
@@ -36,7 +36,6 @@ async function addScheduleSlot(e) {
         await updateDoc(scheduleDocRef, {
             availableSlots: arrayUnion(firestoreTimestamp)
         });
-        // --- Logging ---
         logActivity('info', 'Availability slot added', { teacherId: currentTeacherId, slot: firestoreTimestamp });
     } catch (error) {
         if (error.code === 'not-found') {
@@ -44,17 +43,14 @@ async function addScheduleSlot(e) {
                 await setDoc(doc(db, "teacherSchedules", currentTeacherId), {
                     availableSlots: [firestoreTimestamp]
                 });
-                 // --- Logging ---
                 logActivity('info', 'Availability slot added (new schedule created)', { teacherId: currentTeacherId, slot: firestoreTimestamp });
             } catch (setErr) {
-                 // --- Logging ---
                 logActivity('error', 'Failed to set initial schedule slot', { error: setErr.message, teacherId: currentTeacherId });
                 console.error("Error setting initial slot: ", setErr);
                 scheduleMessage.textContent = 'Error adding slot. See console.';
                 scheduleMessage.className = 'text-danger mt-2';
             }
         } else {
-             // --- Logging ---
             logActivity('error', 'Failed to add schedule slot', { error: error.message, teacherId: currentTeacherId });
             console.error("Error adding slot: ", error);
             scheduleMessage.textContent = 'Error adding slot. See console.';
@@ -90,7 +86,7 @@ function loadSchedule(teacherId) {
                 slotsList.innerHTML = '<li class="list-group-item">You have no available slots.</li>';
             }
         }, (error) => {
-             // --- Logging ---
+             // Logging 
             logActivity('error', 'Failed to load teacher schedule', { error: error.message, teacherId: teacherId });
             console.error("Error loading schedule: ", error);
             slotsList.innerHTML = '<li class="list-group-item text-danger">Error loading schedule.</li>';
@@ -98,7 +94,7 @@ function loadSchedule(teacherId) {
     }
 }
 
-// --- Appointments Logic ---
+// Appointments Logic 
 function loadAppointments(teacherId) {
     if (appointmentsList) {
         appointmentsList.innerHTML = '<li class="list-group-item">Loading appointments...</li>';
@@ -143,7 +139,7 @@ function loadAppointments(teacherId) {
                 appointmentsList.appendChild(li);
             });
         }, (error) => {
-             // --- Logging ---
+             // Logging 
             logActivity('error', 'Failed to load teacher appointments', { error: error.message, teacherId: teacherId });
             console.error("Error loading appointments: ", error);
             appointmentsList.innerHTML = '<li class="list-group-item text-danger">Error loading appointments.</li>';
@@ -157,10 +153,10 @@ async function updateAppointmentStatus(apptId, newStatus) {
         await updateDoc(apptDocRef, {
             status: newStatus
         });
-         // --- Logging ---
+         // Logging 
         logActivity('info', 'Appointment status updated', { teacherId: currentTeacherId, appointmentId: apptId, newStatus: newStatus });
     } catch (error) {
-         // --- Logging ---
+         // Logging 
         logActivity('error', 'Failed to update appointment status', { error: error.message, appointmentId: apptId, newStatus: newStatus });
         console.error("Error updating appointment: ", error);
         alert("Error updating appointment. See console.");
@@ -168,7 +164,7 @@ async function updateAppointmentStatus(apptId, newStatus) {
 }
 
 
-// --- Run on Page Load ---
+// Run on Page Load 
 document.body.addEventListener('authReady', (e) => {
     currentTeacherId = e.detail.uid;
     loadSchedule(currentTeacherId);

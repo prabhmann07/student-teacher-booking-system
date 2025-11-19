@@ -1,4 +1,3 @@
-// js/auth.js (Complete file with validation)
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -12,17 +11,17 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { auth, db } from './firebase-config.js';
 
-// --- Simple Logging Function ---
+//  Logging Function
 export function logActivity(level, message, context = {}) { // Make sure to export it
     console[level](`[${new Date().toISOString()}] ${message}`, context);
 }
 
-// --- Get DOM Elements ---
+// Get DOM Elements 
 const loginForm = document.getElementById('login-form');
 const registerForm = document.getElementById('register-form');
 const logoutButton = document.getElementById('logout-button');
 
-// --- Registration Logic (WITH VALIDATION) ---
+// Registration Logic 
 if (registerForm) {
     registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -33,14 +32,14 @@ if (registerForm) {
         const registerButton = document.getElementById('register-btn');
         errorEl.textContent = ''; // Clear previous errors
 
-        // --- VALIDATION LOGIC ---
+        // VALIDATION LOGIC 
         if (!name.trim() || !email.trim() || !password.trim()) {
             errorEl.textContent = 'All fields are required.';
             return; // Stop submission
         }
         if (password.length < 6) {
              errorEl.textContent = 'Password must be at least 6 characters long.';
-             return; // Stop submission
+             return; 
         }
         // Simple email format check using a Regular Expression
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -48,7 +47,6 @@ if (registerForm) {
             errorEl.textContent = 'Please enter a valid email address.';
             return; // Stop submission
         }
-        // --- END VALIDATION ---
 
         try {
             registerButton.disabled = true;
@@ -77,7 +75,7 @@ if (registerForm) {
     });
 }
 
-// --- Login Logic (WITH VALIDATION) ---
+// Login Logic (WITH VALIDATION) 
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -87,14 +85,14 @@ if (loginForm) {
         const loginButton = document.getElementById('login-btn');
         errorEl.textContent = ''; // Clear previous errors
 
-        // --- VALIDATION LOGIC ---
+        // VALIDATION LOGIC 
         if (!email.trim() || !password.trim()) {
             errorEl.textContent = 'Email and password are required.';
             return; // Stop submission
         }
          if (password.length < 6) {
              errorEl.textContent = 'Password must be at least 6 characters long.';
-             return; // Stop submission
+             return; 
         }
         // Simple email format check
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -102,7 +100,6 @@ if (loginForm) {
             errorEl.textContent = 'Please enter a valid email address.';
             return; // Stop submission
         }
-        // --- END VALIDATION ---
 
         try {
             loginButton.disabled = true;
@@ -147,7 +144,7 @@ if (loginForm) {
         }
     });
 
-    // Display success message (e.g., after registration)
+    // Display success message
     const urlParams = new URLSearchParams(window.location.search);
     const message = urlParams.get('message');
     if (message) {
@@ -158,7 +155,7 @@ if (loginForm) {
     }
 }
 
-// --- Logout Logic ---
+// Logout Logic 
 if (logoutButton) {
     logoutButton.addEventListener('click', async () => {
         try {
@@ -178,7 +175,7 @@ if (logoutButton) {
     });
 }
 
-// --- AUTH GUARD ---
+// AUTH GUARD 
 export async function protectPage(allowedRoles = []) {
     onAuthStateChanged(auth, async (user) => {
         const path = window.location.pathname;

@@ -1,14 +1,14 @@
-// js/admin.js (Complete file with validation)
+// Imports
 import { protectPage, logActivity } from './auth.js'; 
 import { db, auth as adminAuth, firebaseConfig } from './firebase-config.js'; 
 import { collection, query, where, getDocs, doc, updateDoc, setDoc, onSnapshot, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// --- Run Auth Guard ---
+// Run Auth Guard 
 protectPage(['admin']);
 
-// --- Approve Students Logic ---
+// Approve Students Logic 
 const studentsList = document.getElementById('students-list');
 
 async function loadUnapprovedStudents() {
@@ -75,7 +75,7 @@ async function approveStudent(e) {
 }
 
 
-// --- Manage Teachers Logic ---
+// Manage Teachers Logic 
 const addTeacherForm = document.getElementById('add-teacher-form');
 const teachersList = document.getElementById('teachers-list');
 const updateTeacherModalEl = document.getElementById('updateTeacherModal');
@@ -83,7 +83,7 @@ const updateTeacherForm = document.getElementById('update-teacher-form');
 const updateTeacherModal = updateTeacherModalEl ? new bootstrap.Modal(updateTeacherModalEl) : null;
 
 
-// --- Add Teacher function (WITH VALIDATION) ---
+// Add Teacher function (WITH VALIDATION)
 async function addTeacher(e) {
     e.preventDefault();
 
@@ -98,7 +98,7 @@ async function addTeacher(e) {
     errorEl.textContent = ''; // Clear previous errors
     errorEl.classList.remove('text-success', 'text-danger'); // Reset color
 
-    // --- VALIDATION LOGIC ---
+    // VALIDATION LOGIC 
     if (!name.trim() || !email.trim() || !password.trim() || !department.trim() || !subject.trim()) {
         errorEl.textContent = 'All fields are required.';
         errorEl.classList.add('text-danger');
@@ -116,7 +116,6 @@ async function addTeacher(e) {
         errorEl.classList.add('text-danger');
         return; // Stop submission
     }
-    // --- END VALIDATION ---
 
     button.disabled = true;
     button.textContent = 'Adding...';
@@ -148,13 +147,13 @@ async function addTeacher(e) {
         errorEl.textContent = error.message; // Show Firebase error
         errorEl.classList.add('text-danger');
     } finally {
-         // Re-enable button regardless of success or failure
+        // Re-enable button regardless of success or failure
         button.disabled = false;
         button.textContent = 'Add Teacher';
     }
 }
 
-// --- Load Teachers (unchanged) ---
+// Load Teachers 
 function loadTeachers() {
     if (teachersList) {
         teachersList.innerHTML = '<li class="list-group-item">Loading teachers...</li>';
@@ -191,7 +190,7 @@ function loadTeachers() {
     }
 }
 
-// --- Delete Teacher (unchanged) ---
+// Delete Teacher (unchanged) 
 async function deleteTeacher(teacherId) {
     if (!confirm("Are you sure you want to delete this teacher?")) {
         return;
@@ -207,7 +206,7 @@ async function deleteTeacher(teacherId) {
     }
 }
 
-// --- Open Update Modal (unchanged) ---
+// Open Update Modal 
 async function openUpdateModal(teacherId) {
     try {
         const teacherDocRef = doc(db, "users", teacherId);
@@ -235,7 +234,7 @@ async function openUpdateModal(teacherId) {
     }
 }
 
-// --- Handle Update Form Submit (unchanged) ---
+// Handle Update Form Submit 
 async function handleUpdateFormSubmit(e) {
     e.preventDefault();
 
@@ -274,7 +273,7 @@ async function handleUpdateFormSubmit(e) {
 }
 
 
-// --- Run on Page Load ---
+// Run on Page Load
 loadUnapprovedStudents(); 
 loadTeachers(); 
 

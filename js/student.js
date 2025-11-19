@@ -1,12 +1,12 @@
-// --- Import logActivity from auth.js ---
+// Import logActivity from auth.js 
 import { protectPage, logActivity } from './auth.js'; 
 import { db } from './firebase-config.js';
 import { collection, query, where, onSnapshot, doc, getDoc, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// --- Run Auth Guard ---
+//  Run Auth Guard 
 protectPage(['student']);
 
-// --- Get DOM Elements ---
+// Get DOM Element ---
 const teachersList = document.getElementById('teachers-list');
 const searchForm = document.getElementById('search-form');
 const searchInput = document.getElementById('search-input');
@@ -24,7 +24,7 @@ let allTeachers = [];
 let bookingTeacherId = null; 
 let bookingTeacherName = null;
 
-// --- Search Teacher Logic ---
+// Search Teacher Logic 
 function loadTeachers() {
     if (teachersList) {
         teachersList.innerHTML = '<li class="list-group-item">Loading teachers...</li>';
@@ -45,7 +45,7 @@ function loadTeachers() {
                 teachersList.appendChild(li);
             });
         }, (error) => {
-            // --- Logging ---
+            //  Logging 
             logActivity('error', 'Failed to load teachers list for student', { error: error.message });
             console.error("Error loading teachers: ", error);
             teachersList.innerHTML = '<li class="list-group-item text-danger">Error loading teachers.</li>';
@@ -87,14 +87,14 @@ function filterTeachers(e) {
     }
 }
 
-// --- Booking Page Logic ---
+//  Booking Page Logic 
 async function loadBookingPage() {
     if (!bookingForm) return; 
 
     const urlParams = new URLSearchParams(window.location.search);
     bookingTeacherId = urlParams.get('teacherId');
     if (!bookingTeacherId) {
-         // --- Logging ---
+         // Logging 
         logActivity('error', 'Booking page loaded without teacherId');
         teacherNameDisplay.textContent = 'Error: No teacher selected.';
         return;
@@ -104,7 +104,7 @@ async function loadBookingPage() {
         const teacherDocRef = doc(db, "users", bookingTeacherId);
         const teacherDoc = await getDoc(teacherDocRef);
         if (!teacherDoc.exists()) {
-             // --- Logging ---
+             // Logging 
             logActivity('error', 'Teacher not found for booking', { teacherId: bookingTeacherId });
             teacherNameDisplay.textContent = 'Error: Teacher not found.';
             return;
@@ -140,7 +140,6 @@ async function loadBookingPage() {
         });
 
     } catch (error) {
-         // --- Logging ---
         logActivity('error', 'Failed to load booking page details', { error: error.message, teacherId: bookingTeacherId });
         console.error("Error loading booking page: ", error);
         slotsListDiv.innerHTML = '<p class="text-danger">Error loading schedule.</p>';
@@ -168,7 +167,6 @@ async function handleBookingSubmit(e) {
         const selectedMillis = Number(selectedSlotRadio.value);
         const selectedTimestamp = Timestamp.fromMillis(selectedMillis);
 
-        // --- Logging ---
         logActivity('info', 'New appointment booking attempt', { 
             studentId: currentStudentId, 
             teacherId: bookingTeacherId, 
@@ -184,7 +182,7 @@ async function handleBookingSubmit(e) {
             purpose: purpose,
             status: "pending" 
         });
-        // --- Logging ---
+
         logActivity('info', 'Appointment booked successfully', { studentId: currentStudentId, teacherId: bookingTeacherId });
 
         bookingMessage.textContent = 'Appointment booked successfully! Redirecting...';
@@ -195,7 +193,6 @@ async function handleBookingSubmit(e) {
         }, 2000);
 
     } catch (error) {
-         // --- Logging ---
         logActivity('error', 'Failed to book appointment', { error: error.message, studentId: currentStudentId, teacherId: bookingTeacherId });
         console.error("Error booking appointment: ", error);
         bookingMessage.textContent = 'Error booking appointment. Please try again.';
@@ -205,7 +202,7 @@ async function handleBookingSubmit(e) {
     }
 }
 
-// --- "My Appointments" Page Logic ---
+// "My Appointments" Page Logic 
 function loadMyBookings(studentId) {
     if (!myAppointmentsList) return; 
 
@@ -247,7 +244,6 @@ function loadMyBookings(studentId) {
             myAppointmentsList.appendChild(li);
         });
     }, (error) => {
-         // --- Logging ---
         logActivity('error', 'Failed to load student appointments', { error: error.message, studentId: studentId });
         console.error("Error loading my appointments: ", error);
         myAppointmentsList.innerHTML = '<li class="list-group-item text-danger">Error loading appointments.</li>';
@@ -255,7 +251,7 @@ function loadMyBookings(studentId) {
 }
 
 
-// --- Run on Page Load ---
+// Run on Page Load 
 document.body.addEventListener('authReady', (e) => {
     currentStudentId = e.detail.uid;
     currentStudentName = e.detail.user.name;
