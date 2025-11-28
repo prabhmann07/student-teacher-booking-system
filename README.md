@@ -6,16 +6,13 @@ This is a web application built for an internship project. It allows students to
 
 ## Live Demo
 
-You can view a live demo of this project deployed on Firebase Hosting:
-
 **[Live Demo](https://student-teacher-booking-2eb05.web.app)**
 
 ---
 
 ## Project Details
 
-* **Domain:** Education
-* **Project Difficulties level:** Easy
+* **Domain:** Web Development
 * **Technologies Used:** HTML, CSS, JavaScript (ES6 Modules), Firebase
 
 ---
@@ -101,4 +98,25 @@ You can run this project using any simple web server. If you use VS Code, the "L
 2.  Select "Open with Live Server".
 3.  The project will open in your browser.
 
-**Note:** You must create an admin user manually in Firebase (see Phase 2 test plan) to access the admin panels.
+---
+
+##  Test Credentials 
+
+To test the Admin features, please use:
+
+- **Admin Email:** prabhmannsaluja2305@gmail.com
+- **Admin Password:** 123456
+
+---
+
+## Project Evaluation Notes
+
+* **Admin Access:** For security reasons, there is no public "Sign Up as Admin" page. To evaluate the Admin Module, please see the Test Credentials section to login as Admin and evaluate the Admin page and test its features.
+* **Code Structure:** Logic is separated by role for better maintainability:
+    * `js/auth.js`: Handles core authentication and the "Auth Guard" (page protection).
+    * `js/admin.js`, `js/teacher.js`, `js/student.js`: Contain logic specific to each user role.
+* **Security:**
+    * **Auth Guard:** A client-side check (`protectPage`) runs on every dashboard to redirect unauthorized users (e.g., a Student trying to access the Admin panel).
+    * **Config Protection:** The `firebase-config.js` file is included in `.gitignore` to prevent API key leakage. You must create this file locally to run the app.
+* **Real-time Data:** The dashboards use Firestore's `onSnapshot` listener. This means appointments and schedule changes update instantly across screens without requiring a page refresh.
+* **Logging:** A custom `logActivity` function is implemented to log critical actions (Login, Registration, Booking, Approval) to the browser's Developer Console for tracking purposes.
